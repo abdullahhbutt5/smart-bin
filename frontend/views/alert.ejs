@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('partials/head', {title: 'Alerts'}); %>
+</head>
+<body class="bg-gray-100">
+  <%- include('partials/header'); %>
+
+  <main class="container mx-auto px-4 py-8">
+    <h1 class="text-3xl font-bold mb-6">Alerts</h1>
+    
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+      <div class="bg-white p-6 rounded-lg shadow-md">
+        <h3 class="text-lg font-semibold mb-2">Full Bins</h3>
+        <p class="text-4xl font-bold text-red-500" id="full-bins-count">0</p>
+      </div>
+      <div class="bg-white p-6 rounded-lg shadow-md">
+        <h3 class="text-lg font-semibold mb-2">Critical Bins</h3>
+        <p class="text-4xl font-bold text-yellow-500" id="critical-bins-count">0</p>
+      </div>
+    </div>
+    
+    <div class="bg-white rounded-lg shadow-lg overflow-hidden mb-8">
+      <div class="p-4 border-b border-gray-200 flex justify-between items-center">
+        <h2 class="text-xl font-semibold">Full Bins Requiring Immediate Attention</h2>
+        <span class="text-sm text-gray-500">Last updated: <span id="last-updated">Just now</span></span>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200">
+          <thead class="bg-gray-50">
+            <tr>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bin ID</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Area</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Updated</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+            </tr>
+          </thead>
+          <tbody class="bg-white divide-y divide-gray-200" id="full-bins-list">
+          </tbody>
+        </table>
+      </div>
+    </div>
+    
+    <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+      <div class="p-4 border-b border-gray-200 flex justify-between items-center">
+        <h2 class="text-xl font-semibold">Critical Bins</h2>
+        <span class="text-sm text-gray-500">Last updated: <span id="last-updated-critical">Just now</span></span>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200">
+          <thead class="bg-gray-50">
+            <tr>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bin ID</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Area</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fill Level</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time Until Full</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+            </tr>
+          </thead>
+          <tbody class="bg-white divide-y divide-gray-200" id="critical-bins-list">
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <%- include('partials/footer'); %>
+  <%- include('partials/scripts'); %>
+  
+  <script>
+    const eventSource = new EventSource('/api/updates');
+    let lastUpdateTime = new Date();
+    
+    eventSource.onmessage = function(e) {
+      const data = JSON.parse(e.data);
+      lastUpdateTime = new Date(data.timestamp);
+      updateTimeDisplays();
+      refreshData();
+    };
+    
+    function updateTimeDisplays() {
+      const timeDiff = Math.floor((new Date() - lastUpdateTime) / 1000);
+      let displayText;
+      
+      if (timeDiff < 60) {
+        displayText = 'Just now';
+      } else if (timeDiff < 3600) {
+        displayText = `${Math.floor(timeDiff/60)} minutes ago`;
+      } else {
+        displayText = lastUpdateTime.toLocaleTimeString();
+      }
+      
+      document.querySelectorAll('#last-updated, #last-updated-critical').forEach(el => {
+        el.textContent = displayText;
+      });
+    }
+    
+    function refreshData() {
+      fetch('/api/predict')
+        .then(response => response.json())
+        .then(updateAlerts)
+        .catch(console.error);
+    }
+    
+    function updateAlerts(data) {
+      const fullBins = data.filter(bin => bin.predicted_fill >= 100 && !bin.collected);
+      const criticalBins = data.filter(bin => 
+        bin.predicted_fill >= 80 && 
+        bin.predicted_fill < 100 && 
+        !bin.collected
+      );
+      
+      document.getElementById('full-bins-count').textContent = fullBins.length;
+      document.getElementById('critical-bins-count').textContent = criticalBins.length;
+      
+      document.getElementById('full-bins-list').innerHTML = fullBins.map(bin => `
+        <tr data-bin="${bin.bin_id}">
+          <td class="px-6 py-4 whitespace-nowrap font-medium">${bin.bin_id}</td>
+          <td class="px-6 py-4 whitespace-nowrap">${bin.area}</td>
+          <td class="px-6 py-4 whitespace-nowrap">
+            <a href="/map" class="text-blue-500 hover:underline">View on Map</a>
+          </td>
+          <td class="px-6 py-4 whitespace-nowrap">${formatTime(bin.lastUpdated)}</td>
+          <td class="px-6 py-4 whitespace-nowrap">
+            <button class="collect-btn bg-green-500 text-white px-3 py-1 rounded text-sm hover:bg-green-600 transition">
+              Mark as Collected
+            </button>
+          </td>
+        </tr>
+      `).join('');
+      
+      document.getElementById('critical-bins-list').innerHTML = criticalBins.map(bin => `
+        <tr data-bin="${bin.bin_id}">
+          <td class="px-6 py-4 whitespace-nowrap font-medium">${bin.bin_id}</td>
+          <td class="px-6 py-4 whitespace-nowrap">${bin.area}</td>
+          <td class="px-6 py-4 whitespace-nowrap">
+            <div class="w-full bg-gray-200 rounded-full h-2.5">
+              <div class="bg-yellow-500 h-2.5 rounded-full" style="width: ${bin.predicted_fill}%"></div>
+            </div>
+            <span class="text-sm text-gray-500">${bin.predicted_fill}%</span>
+          </td>
+          <td class="px-6 py-4 whitespace-nowrap">${bin.minutes_until_full}</td>
+          <td class="px-6 py-4 whitespace-nowrap">
+            
+            <button class="collect-btn bg-green-500 text-white px-3 py-1 rounded text-sm hover:bg-green-600 transition">
+              Collect Now
+            </button>
+          </td>
+        </tr>
+      `).join('');
+      
+      document.querySelectorAll('.collect-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+          const binId = this.closest('tr').dataset.bin;
+          updateBinStatus(binId, 'collect');
+        });
+      });
+      
+      document.querySelectorAll('.schedule-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+          const binId = this.closest('tr').dataset.bin;
+          updateBinStatus(binId, 'schedule');
+        });
+      });
+    }
+    
+    function updateBinStatus(binId, action) {
+      fetch('/api/update-bin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ binId, action })
+      })
+      .then(response => response.json())
+      .then(() => refreshData())
+      .catch(console.error);
+    }
+    
+    function formatTime(isoString) {
+      const date = new Date(isoString);
+      const now = new Date();
+      const diff = Math.floor((now - date) / 1000);
+      
+      if (diff < 60) return 'Just now';
+      if (diff < 3600) return `${Math.floor(diff/60)} min ago`;
+      return date.toLocaleTimeString();
+    }
+    
+    // Initial load
+    refreshData();
+    setInterval(refreshData, 30000);
+  </script>
+</body>
+</html>

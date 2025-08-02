@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('partials/head', {title: 'Home'}); %>
+</head>
+<body class="bg-gray-100">
+  <%- include('partials/header'); %>
+
+  <main class="container mx-auto px-4 py-8">
+    <section class="hero bg-green-500 text-white rounded-lg shadow-lg p-8 mb-8">
+      <div class="flex flex-col md:flex-row items-center">
+        <div class="md:w-1/2 mb-6 md:mb-0">
+          <h1 class="text-4xl font-bold mb-4">Smart Bin Monitoring System</h1>
+          <p class="text-xl mb-6">Efficient waste management through real-time monitoring and predictive analytics.</p>
+          <a href="/dashboard" class="bg-white text-green-600 font-semibold px-6 py-3 rounded-lg hover:bg-gray-100 transition">View Dashboard</a>
+        </div>
+        <div class="md:w-1/2 flex justify-center">
+        </div>
+      </div>
+    </section>
+
+    <section class="features grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+      <div class="bg-white p-6 rounded-lg shadow-md">
+        <div class="text-green-500 mb-4">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+          </svg>
+        </div>
+        <h3 class="text-xl font-semibold mb-2">Real-time Monitoring</h3>
+        <p class="text-gray-600">Track bin fill levels in real-time across all locations.</p>
+      </div>
+      <div class="bg-white p-6 rounded-lg shadow-md">
+        <div class="text-green-500 mb-4">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+          </svg>
+        </div>
+        <h3 class="text-xl font-semibold mb-2">Predictive Analytics</h3>
+        <p class="text-gray-600">AI-powered predictions for when bins will be full.</p>
+      </div>
+      <div class="bg-white p-6 rounded-lg shadow-md">
+        <div class="text-green-500 mb-4">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+          </svg>
+        </div>
+        <h3 class="text-xl font-semibold mb-2">Optimized Routes</h3>
+        <p class="text-gray-600">Efficient collection routes to save time and fuel.</p>
+      </div>
+    </section>
+
+    <section class="cta bg-white p-8 rounded-lg shadow-lg text-center">
+      <h2 class="text-2xl font-bold mb-4">Ready to optimize your waste management?</h2>
+      <p class="text-gray-600 mb-6 max-w-2xl mx-auto">Our system helps cities and businesses manage waste collection more efficiently, reducing costs and environmental impact.</p>
+      <a href="/dashboard" class="inline-block bg-green-500 text-white font-semibold px-6 py-3 rounded-lg hover:bg-green-600 transition">Get Started</a>
+    </section>
+  </main>
+
+  <%- include('partials/footer'); %>
+  <%- include('partials/scripts'); %>
+</body>
+</html>

@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('partials/head', {title: 'Routes'}); %>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
+  <style>
+    #route-map { height: 600px; }
+    .route-controls {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      z-index: 1000;
+      background: white;
+      padding: 10px;
+      border-radius: 5px;
+      box-shadow: 0 0 15px rgba(0,0,0,0.2);
+    }
+  </style>
+</head>
+<body class="bg-gray-100">
+  <%- include('partials/header'); %>
+
+  <main class="container mx-auto px-4 py-8">
+    <h1 class="text-3xl font-bold mb-6">Optimized Collection Routes</h1>
+    
+    <div class="bg-white rounded-lg shadow-lg overflow-hidden mb-8 relative">
+      <div class="route-controls">
+        <button class="bg-green-500 text-white px-3 py-1 rounded text-sm hover:bg-green-600 transition mb-2" id="optimize-route">
+          Optimize Route
+        </button>
+        <div class="mb-2">
+          <label class="block text-sm font-medium text-gray-700 mb-1">Route Type</label>
+          <select class="w-full border border-gray-300 rounded p-1 text-sm" id="route-type">
+            <option value="full">Full Bins Only</option>
+            <option value="critical">Critical Bins</option>
+            <option value="all">All Bins</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Vehicle Capacity</label>
+          <input type="number" class="w-full border border-gray-300 rounded p-1 text-sm" id="vehicle-capacity" value="10" min="1">
+        </div>
+      </div>
+      <div id="route-map"></div>
+    </div>
+    
+    <div class="bg-white p-6 rounded-lg shadow-lg">
+      <h2 class="text-xl font-semibold mb-4">Route Summary</h2>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+        <div class="bg-gray-50 p-4 rounded">
+          <h3 class="font-medium text-gray-700 mb-1">Total Distance</h3>
+          <p class="text-2xl font-bold" id="total-distance">-</p>
+        </div>
+        <div class="bg-gray-50 p-4 rounded">
+          <h3 class="font-medium text-gray-700 mb-1">Estimated Time</h3>
+          <p class="text-2xl font-bold" id="estimated-time">-</p>
+        </div>
+        <div class="bg-gray-50 p-4 rounded">
+          <h3 class="font-medium text-gray-700 mb-1">Bins in Route</h3>
+          <p class="text-2xl font-bold" id="bins-count">-</p>
+        </div>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200">
+          <thead class="bg-gray-50">
+            <tr>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bin ID</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Area</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fill Level</th>
+            </tr>
+          </thead>
+          <tbody class="bg-white divide-y divide-gray-200" id="route-details">
+            <tr>
+              <td colspan="4" class="px-6 py-4 text-center text-gray-500">No route generated yet</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <%- include('partials/footer'); %>
+  <%- include('partials/scripts'); %>
+  
+  <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
+  <script>
+    let map, routingControl;
+    let allBins = [];
+    
+    document.addEventListener('DOMContentLoaded', function() {
+      fetch('/api/predict')
+        .then(response => response.json())
+        .then(data => {
+          allBins = data;
+          initRouteMap();
+        })
+        .catch(error => {
+          console.error('Error loading data:', error);
+        });
+        
+      document.getElementById('optimize-route').addEventListener('click', optimizeRoute);
+    });
+
+    function initRouteMap() {
+      const firstBin = allBins[0];
+      map = L.map('route-map').setView([firstBin.latitude, firstBin.longitude], 13);
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+      }).addTo(map);
+
+      allBins.forEach(bin => {
+        const marker = L.marker([bin.latitude, bin.longitude], {
+          icon: getBinIcon(bin.predicted_fill)
+        }).addTo(map);
+
+        marker.bindPopup(`
+          <div class="font-semibold">${bin.bin_id}</div>
+          <div>Area: ${bin.area}</div>
+          <div>Fill Level: ${bin.predicted_fill}%</div>
+        `);
+      });
+    }
+    
+    function getBinIcon(fillLevel) {
+      let iconColor;
+      if (fillLevel >= 100) iconColor = 'red';
+      else if (fillLevel >= 80) iconColor = 'orange';
+      else if (fillLevel >= 50) iconColor = 'blue';
+      else iconColor = 'green';
+
+      return L.divIcon({
+        className: 'bin-icon',
+        html: `<div style="background-color: ${iconColor}; width: 20px; height: 20px; border-radius: 50%; border: 2px solid white; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 10px;">${Math.round(fillLevel)}%</div>`,
+        iconSize: [24, 24],
+        iconAnchor: [12, 12]
+      });
+    }
+    
+    function optimizeRoute() {
+      const routeType = document.getElementById('route-type').value;
+      const vehicleCapacity = parseInt(document.getElementById('vehicle-capacity').value);
+      
+      let binsToRoute;
+      if (routeType === 'full') {
+        binsToRoute = allBins.filter(bin => bin.predicted_fill >= 100);
+      } else if (routeType === 'critical') {
+        binsToRoute = allBins.filter(bin => bin.predicted_fill >= 80);
+      } else {
+        binsToRoute = [...allBins];
+      }
+      
+      binsToRoute.sort((a, b) => b.predicted_fill - a.predicted_fill);
+      
+      binsToRoute = binsToRoute.slice(0, vehicleCapacity);
+      
+      if (binsToRoute.length === 0) {
+        alert('No bins match the selected criteria');
+        return;
+      }
+      
+      if (routingControl) {
+        map.removeControl(routingControl);
+      }
+      
+      const waypoints = binsToRoute.map(bin => 
+        L.latLng(bin.latitude, bin.longitude)
+      );
+      
+      const depot = waypoints[0];
+      waypoints.unshift(depot);
+      waypoints.push(depot);
+      
+      routingControl = L.Routing.control({
+        waypoints: waypoints,
+        routeWhileDragging: true,
+        show: false,
+        addWaypoints: false,
+        draggableWaypoints: false,
+        fitSelectedRoutes: true,
+        lineOptions: {
+          styles: [{color: '#3B82F6', opacity: 0.7, weight: 5}]
+        }
+      }).addTo(map);
+      
+      updateRouteSummary(binsToRoute);
+    }
+    
+    function updateRouteSummary(bins) {
+      const totalDistance = (bins.length * 0.5 + Math.random() * 2).toFixed(1);
+      const estimatedTime = Math.floor(bins.length * 5 + Math.random() * 15);
+      
+      document.getElementById('total-distance').textContent = `${totalDistance} km`;
+      document.getElementById('estimated-time').textContent = `${estimatedTime} min`;
+      document.getElementById('bins-count').textContent = bins.length;
+      
+      const routeDetails = document.getElementById('route-details');
+      routeDetails.innerHTML = bins.map((bin, index) => `
+        <tr>
+          <td class="px-6 py-4 whitespace-nowrap">${index + 1}</td>
+          <td class="px-6 py-4 whitespace-nowrap font-medium">${bin.bin_id}</td>
+          <td class="px-6 py-4 whitespace-nowrap">${bin.area}</td>
+          <td class="px-6 py-4 whitespace-nowrap">
+            <span class="px-2 py-1 text-xs rounded-full ${bin.predicted_fill >= 100 ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'}">
+              ${bin.predicted_fill}%
+            </span>
+          </td>
+        </tr>
+      `).join('');
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('partials/head', {title: 'Reports'}); %>
+</head>
+<body class="bg-gray-100">
+  <%- include('partials/header'); %>
+
+  <main class="container mx-auto px-4 py-8">
+    <h1 class="text-3xl font-bold mb-6">Reports & Analytics</h1>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+      <div class="bg-white p-6 rounded-lg shadow-lg" style="height: 300px;">
+        <h2 class="text-xl font-semibold mb-4">Fill Level Trends</h2>
+        <canvas id="trend-chart" style="width: 100%; height: 100%;"></canvas>
+      </div>
+      <div class="bg-white p-6 rounded-lg shadow-lg" style="height: 300px;">
+        <h2 class="text-xl font-semibold mb-4">Collection Frequency</h2>
+        <canvas id="frequency-chart" style="width: 100%; height: 100%;"></canvas>
+      </div>
+    </div>
+
+    <div class="bg-white p-6 rounded-lg shadow-lg mb-8" style="height: 400px;">
+      <h2 class="text-xl font-semibold mb-4">Area-wise Performance</h2>
+      <canvas id="area-performance-chart" style="width: 100%; height: 100%;"></canvas>
+    </div>
+
+    <div class="bg-white p-6 rounded-lg shadow-lg">
+      <h2 class="text-xl font-semibold mb-4">Export Data</h2>
+      <div class="flex flex-col md:flex-row gap-4">
+        <button class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition" id="export-csv">
+          Export as CSV
+        </button>
+        <button class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition" id="export-pdf">
+          Export as PDF
+        </button>
+        <button class="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600 transition" id="export-json">
+          Export as JSON
+        </button>
+      </div>
+    </div>
+  </main>
+
+  <%- include('partials/footer'); %>
+  <%- include('partials/scripts'); %>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      fetch('/api/predict')
+        .then(response => response.json())
+        .then(data => {
+          renderReports(data);
+        })
+        .catch(error => {
+          console.error('Error loading data:', error);
+        });
+    });
+
+    function renderReports(data) {
+      const areas = [...new Set(data.map(bin => bin.area))];
+      const areaStats = {};
+
+      const safeValue = (value, max) => Math.min(value, max);
+
+      areas.forEach(area => {
+        const areaBins = data.filter(bin => bin.area === area);
+        const avgFill = safeValue(areaBins.reduce((sum, bin) => sum + bin.predicted_fill, 0) / areaBins.length, 100);
+        const fullBins = safeValue(areaBins.filter(bin => bin.predicted_fill >= 100).length, areaBins.length);
+        const criticalBins = safeValue(areaBins.filter(bin => bin.predicted_fill >= 80 && bin.predicted_fill < 100).length, areaBins.length);
+
+        areaStats[area] = {
+          avgFill,
+          fullBins,
+          criticalBins,
+          totalBins: areaBins.length
+        };
+      });
+
+      const trendCtx = document.getElementById('trend-chart').getContext('2d');
+      new Chart(trendCtx, {
+        type: 'line',
+        data: {
+          labels: ['6am', '9am', '12pm', '3pm', '6pm', '9pm'],
+          datasets: [
+            {
+              label: 'Average Fill Level',
+              data: [35, 45, 60, 70, 75, 80].map(v => safeValue(v, 100)),
+              borderColor: '#3B82F6',
+              backgroundColor: 'rgba(59, 130, 246, 0.1)',
+              tension: 0.3,
+              fill: true
+            },
+            {
+              label: 'Full Bins',
+              data: [2, 3, 5, 8, 10, 12].map(v => safeValue(v, data.length)),
+              borderColor: '#EF4444',
+              backgroundColor: 'rgba(239, 68, 68, 0.1)',
+              tension: 0.3,
+              fill: true
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              beginAtZero: true,
+              max: 100,
+              ticks: {
+                callback: function(value) {
+                  return value + '%';
+                }
+              }
+            }
+          }
+        }
+      });
+
+      const frequencyCtx = document.getElementById('frequency-chart').getContext('2d');
+      new Chart(frequencyCtx, {
+        type: 'bar',
+        data: {
+          labels: areas,
+          datasets: [{
+            label: 'Collections per Week',
+            data: areas.map(area => safeValue(Math.floor(Math.random() * 10) + 3, 20)),
+            backgroundColor: '#10B981'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              beginAtZero: true,
+              max: 20,
+              ticks: {
+                precision: 0
+              }
+            }
+          }
+        }
+      });
+
+      const areaPerformanceCtx = document.getElementById('area-performance-chart').getContext('2d');
+      new Chart(areaPerformanceCtx, {
+        type: 'bar',
+        data: {
+          labels: areas,
+          datasets: [
+            {
+              label: 'Average Fill Level',
+              data: areas.map(area => safeValue(areaStats[area].avgFill, 100)),
+              backgroundColor: '#3B82F6',
+              maxBarThickness: 40
+            },
+            {
+              label: 'Full Bins',
+              data: areas.map(area => safeValue(areaStats[area].fullBins, areaStats[area].totalBins)),
+              backgroundColor: '#EF4444',
+              maxBarThickness: 40
+            },
+            {
+              label: 'Critical Bins',
+              data: areas.map(area => safeValue(areaStats[area].criticalBins, areaStats[area].totalBins)),
+              backgroundColor: '#F59E0B',
+              maxBarThickness: 40
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              beginAtZero: true,
+              max: 100,
+              ticks: {
+                callback: function(value) {
+                  return value + '%';
+                }
+              }
+            },
+            x: {
+              stacked: false,
+              grid: {
+                display: false
+              }
+            }
+          }
+        }
+      });
+
+      document.getElementById('export-csv').addEventListener('click', () => {
+        alert('CSV export would be implemented here');
+      });
+
+      document.getElementById('export-pdf').addEventListener('click', () => {
+        alert('PDF export would be implemented here');
+      });
+
+      document.getElementById('export-json').addEventListener('click', () => {
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data, null, 2));
+        const downloadAnchorNode = document.createElement('a');
+        downloadAnchorNode.setAttribute("href", dataStr);
+        downloadAnchorNode.setAttribute("download", "bin_data.json");
+        document.body.appendChild(downloadAnchorNode);
+        downloadAnchorNode.click();
+        downloadAnchorNode.remove();
+      });
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,41 @@
+<header class="bg-green-600 text-white shadow-lg">
+  <div class="container mx-auto px-4 py-4 flex justify-between items-center">
+    <div class="flex items-center space-x-2">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+      </svg>
+      <h1 class="text-xl font-bold">Smart Bin Monitor</h1>
+    </div>
+    <nav class="hidden md:flex space-x-6">
+      <% if (user && (user.role === 'admin' || user.role === 'worker')) { %>
+        <a href="/dashboard" class="hover:text-green-200 transition">Dashboard</a>
+        <a href="/map" class="hover:text-green-200 transition">Map</a>
+        <a href="/reports" class="hover:text-green-200 transition">Reports</a>
+        <a href="/alerts" class="hover:text-green-200 transition">Alerts</a>
+        <a href="/routes" class="hover:text-green-200 transition">Routes</a>
+      <% } %>
+      <% if (user) { %>
+        <a href="/logout" class="hover:text-green-200 transition">Logout</a>
+      <% } %>
+    </nav>
+    <button class="md:hidden focus:outline-none" id="mobile-menu-button">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+      </svg>
+    </button>
+  </div>
+  <div class="md:hidden hidden bg-green-700" id="mobile-menu">
+    <div class="container mx-auto px-4 py-2 flex flex-col space-y-2">
+      <% if (user && (user.role === 'admin' || user.role === 'worker')) { %>
+        <a href="/dashboard" class="hover:text-green-200 transition py-2">Dashboard</a>
+        <a href="/map" class="hover:text-green-200 transition py-2">Map</a>
+        <a href="/reports" class="hover:text-green-200 transition py-2">Reports</a>
+        <a href="/alerts" class="hover:text-green-200 transition py-2">Alerts</a>
+        <a href="/routes" class="hover:text-green-200 transition py-2">Routes</a>
+      <% } %>
+      <% if (user) { %>
+        <a href="/logout" class="hover:text-green-200 transition py-2">Logout</a>
+      <% } %>
+    </div>
+  </div>
+</header>

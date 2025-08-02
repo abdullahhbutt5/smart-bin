@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <%- include('partials/head', {title: 'Map'}); %>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+  <style>
+    #map { height: 600px; }
+    .legend {
+      padding: 10px;
+      background: white;
+      border-radius: 5px;
+      box-shadow: 0 0 15px rgba(0,0,0,0.2);
+      line-height: 1.5;
+    }
+    .legend i {
+      width: 18px;
+      height: 18px;
+      float: left;
+      margin-right: 8px;
+      opacity: 0.7;
+    }
+  </style>
+</head>
+<body class="bg-gray-100">
+  <%- include('partials/header'); %>
+
+  <main class="container mx-auto px-4 py-8">
+    <h1 class="text-3xl font-bold mb-6">Bin Locations</h1>
+    
+    <div class="bg-white rounded-lg shadow-lg overflow-hidden mb-6">
+      <div id="map"></div>
+    </div>
+    
+    <div class="bg-white p-6 rounded-lg shadow-lg">
+      <h2 class="text-xl font-semibold mb-4">Bin Status Legend</h2>
+      <div class="flex flex-wrap gap-4">
+        <div class="flex items-center">
+          <div class="w-4 h-4 bg-green-500 rounded-full mr-2"></div>
+          <span>Normal (0-50%)</span>
+        </div>
+        <div class="flex items-center">
+          <div class="w-4 h-4 bg-blue-500 rounded-full mr-2"></div>
+          <span>Warning (50-80%)</span>
+        </div>
+        <div class="flex items-center">
+          <div class="w-4 h-4 bg-yellow-500 rounded-full mr-2"></div>
+          <span>Critical (80-99%)</span>
+        </div>
+        <div class="flex items-center">
+          <div class="w-4 h-4 bg-red-500 rounded-full mr-2"></div>
+          <span>Full (100%)</span>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <%- include('partials/footer'); %>
+  <%- include('partials/scripts'); %>
+  
+  <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      fetch('/api/predict')
+        .then(response => response.json())
+        .then(data => {
+          initMap(data);
+        })
+        .catch(error => {
+          console.error('Error loading data:', error);
+        });
+    });
+
+    function initMap(bins) {
+      const firstBin = bins[0];
+      const map = L.map('map').setView([firstBin.latitude, firstBin.longitude], 13);
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+      }).addTo(map);
+
+      function getBinIcon(fillLevel) {
+        let iconColor;
+        if (fillLevel >= 100) iconColor = 'red';
+        else if (fillLevel >= 80) iconColor = 'orange';
+        else if (fillLevel >= 50) iconColor = 'blue';
+        else iconColor = 'green';
+
+        return L.divIcon({
+          className: 'bin-icon',
+          html: `<div style="background-color: ${iconColor}; width: 20px; height: 20px; border-radius: 50%; border: 2px solid white; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 10px;">${Math.round(fillLevel)}%</div>`,
+          iconSize: [24, 24],
+          iconAnchor: [12, 12]
+        });
+      }
+
+      bins.forEach(bin => {
+        const marker = L.marker([bin.latitude, bin.longitude], {
+          icon: getBinIcon(bin.predicted_fill)
+        }).addTo(map);
+
+        marker.bindPopup(`
+          <div class="font-semibold">${bin.bin_id}</div>
+          <div>Area: ${bin.area}</div>
+          <div>Fill Level: ${bin.predicted_fill}%</div>
+          <div>Status: ${bin.predicted_fill >= 100 ? 'Full' : bin.predicted_fill >= 80 ? 'Critical' : bin.predicted_fill >= 50 ? 'Warning' : 'Normal'}</div>
+          <div>Time until full: ${bin.minutes_until_full}</div>
+        `);
+      });
+
+      const legend = L.control({position: 'bottomright'});
+      legend.onAdd = function(map) {
+        const div = L.DomUtil.create('div', 'legend');
+        div.innerHTML = `
+          <h4>Bin Status</h4>
+          <div><i style="background: green"></i> Normal (0-50%)</div>
+          <div><i style="background: blue"></i> Warning (50-80%)</div>
+          <div><i style="background: orange"></i> Critical (80-99%)</div>
+          <div><i style="background: red"></i> Full (100%)</div>
+        `;
+        return div;
+      };
+      legend.addTo(map);
+    }
+  </script>
+</body>
+</html>
